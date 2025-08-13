@@ -22,9 +22,13 @@
 #define PERIPHERAL_NAME "Pista_esclavo"
 #define WEATHER_STATION_PACKET_LENGTH 36
 
+typedef enum {
+    THROW
+}THROW_COMMAND;
+
 const uint8_t pinServo = 41;
 const uint8_t pinMotor = 40;
-Throwball throwball(pinServo, pinMotor);
+QueueHandle_t PitchballCommandQueue;
 
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -43,10 +47,6 @@ void readMacAddress(){
   } else {
     Serial.println("Failed to read MAC address");
   }
-}
-
-void handleThrowball(String parameters){
-    Serial.println("Throwball requested!");
 }
 
 class ServerCallbacks : public BLEServerCallbacks
@@ -88,14 +88,75 @@ void Nombre_Pulsera_Callbacks::onWrite(BLECharacteristic *pCharacteristic) {
 
 //callback function that will be executed when data is received
 void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len) {
-  Serial.print("Bytes received: ");
-  
+  // Log raw payload (best-effort, non-null-terminated)
+  Serial.printf("Bytes received: %d\n", len);
+  Serial.write(incomingData, len);
+  Serial.println();
+
+  // Trim trailing CR/LF/NUL if the sender adds them
+  int end = len;
+  while (end > 0) {
+    uint8_t c = incomingData[end - 1];
+    if (c == '\r' || c == '\n' || c == '\0') {
+      end--;
+    } else {
+      break;
+    }
+  }
+
+  // Need at least "/x"
+  if (end >= 2) {
+    uint8_t last2 = incomingData[end - 2];
+    uint8_t last1 = incomingData[end - 1];
+
+    if (last2 == '/' && (last1 == '0' || last1 == '1')) {
+      if (last1 == '1') {
+        THROW_COMMAND cmd = THROW;
+        // ESP-NOW recv callback runs in task context -> xQueueSend is fine.
+        BaseType_t ok = xQueueSend(PitchballCommandQueue, &cmd, 0);
+        if (ok != pdPASS) {
+          Serial.println("Queue full: THROW not enqueued");
+        } else {
+          Serial.println("Enqueued: THROW");
+        }
+      } else {
+        // '/0' explicitly means "do nothing"
+        Serial.println("Command '/0' received: ignoring");
+      }
+    } else {
+      Serial.println("Malformed tail: expected '/0' or '/1'");
+    }
+  } else {
+    Serial.println("Payload too short: expected '/x'");
+  }
 }
 
 // Callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+void PitchballTaskManager(void *args)
+{
+  THROW_COMMAND cmd;
+  Throwball throwball(pinServo, pinMotor);
+  while (true)
+  {
+    if (xQueueReceive(PitchballCommandQueue, &cmd, portMAX_DELAY) == pdPASS)
+    {
+      switch (cmd)
+      {
+      case THROW:
+        Serial.println("THROW REQUESTED");
+        throwball.execute();
+        break; 
+      default:
+        Serial.println("Unknown Command in task");
+        break;
+      }
+    }
+  }
 }
 
 void setup() {
@@ -184,6 +245,10 @@ void setup() {
   nombre_pista->setValue(peripheralNameWithNVS);
   nombre_pista->notify();
 
+  PitchballCommandQueue = xQueueCreate(10, sizeof(THROW_COMMAND));
+
+  xTaskCreate(PitchballTaskManager, "pitchball_manager", 2048 * 4, NULL, 1, NULL);
+
   #ifdef FIRMWARE_VERSION
   Serial.printf("FIRMWARE VERSION %s\n", FIRMWARE_VERSION);
   #endif
@@ -195,6 +260,12 @@ struct CommandMap {
   void (*function)(String parameters);
 };
 
+void handleThrowball(String parameters){
+    Serial.println("Throwbal!!!");
+    THROW_COMMAND cmd = THROW;
+    xQueueSend(PitchballCommandQueue, &cmd, portMAX_DELAY);
+}
+
 CommandMap commandTable[] = {
   {"THROW_BALL", handleThrowball}
 };
@@ -203,7 +274,6 @@ void messageParser(String uart_frame) {
   Serial.printf("This is UART FRAME: %s \n", uart_frame.c_str());
   for (int i = 0; i < sizeof(commandTable) / sizeof(CommandMap); i++) {
     if (uart_frame.startsWith(commandTable[i].command)) {
-      // Assumes an underscore after the command (e.g., "SET_LIGHT_0,1")
       String parameters = uart_frame.substring(strlen(commandTable[i].command) + 1);
       commandTable[i].function(parameters);
       return;
@@ -215,7 +285,7 @@ void messageParser(String uart_frame) {
 void loop(){
   if (Serial.available())
   {
-    String receivedData = Serial1.readStringUntil('\n'); // Read until a newline character
+    String receivedData = Serial.readStringUntil('\n'); // Read until a newline character
     Serial.print("Received from PC: ");
     Serial.println(receivedData);
     messageParser(receivedData);
