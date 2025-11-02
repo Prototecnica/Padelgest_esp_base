@@ -141,6 +141,7 @@ void PitchballTaskManager(void *args)
 {
   THROW_COMMAND cmd;
   Throwball throwball(pinServo, pinMotor);
+  throwball.init();
   while (true)
   {
     if (xQueueReceive(PitchballCommandQueue, &cmd, portMAX_DELAY) == pdPASS)
@@ -162,6 +163,7 @@ void PitchballTaskManager(void *args)
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
+  pinMode(40, INPUT);
   Preferences preferences;
   preferences.begin("storage", true); // The second parameter is readonly
   String nvsString = preferences.getString("name", "");
@@ -218,6 +220,7 @@ void setup() {
   sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X", 
           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   // Set the MAC address as the value of the characteristic
+  Serial.printf("Device MAC Address: %s\n", macStr);
   direccion_mac_propia->setValue(macStr);
   direccion_mac_propia->notify();
   Serial.println("Mac address notified!");

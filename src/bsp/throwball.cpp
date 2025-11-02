@@ -14,6 +14,7 @@ void Throwball::init() {
 
 void Throwball::execute() {
     // Start motor
+    Serial.println("activating");
     digitalWrite(motorEnable, LOW);  // LOW = motor on
     delay(3500); // Spin up for 3.5s
     // Open servo
@@ -23,5 +24,6 @@ void Throwball::execute() {
     servo.write(130); // Adjust to your "closed" angle
     delay(400);
     // Stop motor
+    Serial.println("deactivating");
     digitalWrite(motorEnable, HIGH);
 }
