@@ -5,24 +5,21 @@ Throwball::Throwball(uint8_t servoPin, uint8_t motorEnable)
 
 void Throwball::init() {
     pinMode(motorEnable, OUTPUT);
-    // ESP32Servo requires setting up PWM channels before attach
-    // Optional: Servo.attach(pin, minUs, maxUs) to match your servo's range
-    servo.attach(servoPin, 500, 2400);
-    digitalWrite(motorEnable, HIGH); // HIGH = motor off
-    servo.write(130); // Default to closed position
+    digitalWrite(motorEnable, HIGH); // Motor off
+    servo.attach(servoPin);   // PWM pin
+    servo.write(180-130); // Default to closed position
 }
 
 void Throwball::execute() {
-    // Start motor
     Serial.println("activating");
-    digitalWrite(motorEnable, LOW);  // LOW = motor on
-    delay(3500); // Spin up for 3.5s
+    digitalWrite(motorEnable, LOW);
+    delay(5000);
     // Open servo
-    servo.write(60); // Adjust to your "open" angle
-    delay(650);
+    servo.write(180-60); // Adjust to your "open" angle
+    delay(2000);
     // Close servo
-    servo.write(130); // Adjust to your "closed" angle
-    delay(400);
+    servo.write(180-130); // Adjust to your "closed" angle
+    delay(3000);
     // Stop motor
     Serial.println("deactivating");
     digitalWrite(motorEnable, HIGH);

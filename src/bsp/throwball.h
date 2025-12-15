@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include <ESP32Servo.h>
+#include <s3servo.h>
 
 class Throwball {
 public:
@@ -11,5 +11,5 @@ public:
 private:
     uint8_t servoPin;
     uint8_t motorEnable;
-    Servo servo;
+    s3servo servo;
 };
