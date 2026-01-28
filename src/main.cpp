@@ -418,11 +418,23 @@ void handleVolStatus(String parameters){
 }
 
 
+void handleGetMac(String parameters){
+  uint8_t mac[6];
+  WiFi.macAddress(mac); // Gets Wi-Fi Station MAC
+  char macStr[18];
+  sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X", 
+          mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  String message = String("MAC:") + String(macStr);
+  Serial.println(macStr);
+  Serial1.println(macStr);
+}
+
 CommandMap commandTable[] = {
   {"SET_LED_EFFECT", handleSetLedEffect},
   {"SET_LIGHT", handleSetLight},
   {"SET_NET", handleSetNet},
-  {"VOL", handleVolStatus}
+  {"VOL", handleVolStatus},
+  {"GET_MAC", handleGetMac}
 };
 
 void messageParser(String uart_frame) {
