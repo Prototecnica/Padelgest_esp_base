@@ -176,7 +176,7 @@ void Nombre_Pulsera_Callbacks::onWrite(BLECharacteristic *pCharacteristic) {
     preferences.begin("storage", false);
     preferences.putString("name", rxValue.c_str());
     preferences.end();
-    Serial1.println((String) PERIPHERAL_NAME + rxValue.c_str());    
+    //Serial1.println((String) PERIPHERAL_NAME + rxValue.c_str());    
 
     vTaskDelay(pdMS_TO_TICKS(5000));
     //BLEDevice::deinit(false);
